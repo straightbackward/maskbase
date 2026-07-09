@@ -3,10 +3,16 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { Loader2, ZoomIn, ZoomOut, Plus } from 'lucide-react';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
-// Vite's ?worker suffix gives us a real Worker constructor with same-origin
-// bundling that works in both dev and the Tauri prod origin. Using the legacy
-// build for older-WebKit compat (macOS Ventura).
-import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker';
+// ?worker&inline bundles the worker code into the JS and spawns it from a
+// blob: URL — no network fetch. This is required in the Tauri prod webview:
+// the page origin is the custom scheme tauri://localhost, and WKWebView does
+// not service custom-protocol requests made from worker threads, so any
+// URL-based worker load (workerSrc or ?worker) hangs forever with no error.
+// Legacy build for older-WebKit compat (macOS Ventura). Each <Document> gets
+// its own PDFWorker instance (see documentOptions below): react-pdf destroys
+// the loading task's worker on unmount, and a shared worker/port would kill
+// PDF loading for every Document mounted afterwards.
+import PdfWorkerInline from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker&inline';
 import { DetectedEntity } from '../types';
 import {
   Highlight,
@@ -14,8 +20,6 @@ import {
   computePageHighlights,
   escapeHtml,
 } from '../lib/pdfHighlights';
-
-pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 // cmaps + standard fonts are copied into public/pdfjs/ by `npm run assets:pdfjs`.
 const PDF_DOCUMENT_OPTIONS = {
@@ -203,6 +207,18 @@ export default function ReviewPdfViewer({
 
   const fileUrl = `${BASE_URL}/sessions/${sessionId}/original-file`;
 
+  // One worker per viewer instance, torn down on unmount. Passed to pdf.js via
+  // documentOptions so it never touches the global worker configuration.
+  const pdfWorker = useMemo(
+    () => new pdfjs.PDFWorker({ port: new PdfWorkerInline() as unknown as null }),
+    [],
+  );
+  useEffect(() => () => pdfWorker.destroy(), [pdfWorker]);
+  const documentOptions = useMemo(
+    () => ({ ...PDF_DOCUMENT_OPTIONS, worker: pdfWorker }),
+    [pdfWorker],
+  );
+
   const enabledMap = useMemo(() => detectedEntities.map((e) => e.enabled), [detectedEntities]);
 
   // Structural key: ignores the mutable `enabled` flag so toggling a highlight
@@ -371,7 +387,7 @@ export default function ReviewPdfViewer({
         >
           <Document
             file={fileUrl}
-            options={PDF_DOCUMENT_OPTIONS}
+            options={documentOptions}
             onLoadSuccess={onLoadSuccess}
             onLoadError={onLoadError}
             loading={null}

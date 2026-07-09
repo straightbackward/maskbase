@@ -4,7 +4,12 @@ import { FileText, Download, ShieldCheck, ZoomIn, ZoomOut, Loader2 } from 'lucid
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
-import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker';
+// ?worker&inline spawns the worker from a blob: URL with no network fetch —
+// required in the Tauri prod webview, where WKWebView never services
+// custom-protocol (tauri://) requests made from worker threads, so URL-based
+// worker loads hang forever. One PDFWorker per viewer instance: a shared
+// worker/port dies on the first <Document> unmount. See ReviewPdfViewer.tsx.
+import PdfWorkerInline from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker&inline';
 import { getDownloadUrl } from '../services/api';
 import { ChatDocument, DetectedEntity } from '../types';
 import {
@@ -14,8 +19,6 @@ import {
   escapeHtml,
 } from '../lib/pdfHighlights';
 import DocxDocumentViewer from './DocxDocumentViewer';
-
-pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
 
 const PDF_DOCUMENT_OPTIONS = {
   cMapUrl: '/pdfjs/cmaps/',
@@ -206,6 +209,17 @@ function PdfDocumentViewer({
 
   const fileUrl = `${BASE_URL}/sessions/${sessionId}/original-file`;
 
+  // One worker per viewer instance, torn down on unmount.
+  const pdfWorker = useMemo(
+    () => new pdfjs.PDFWorker({ port: new PdfWorkerInline() as unknown as null }),
+    [],
+  );
+  useEffect(() => () => pdfWorker.destroy(), [pdfWorker]);
+  const documentOptions = useMemo(
+    () => ({ ...PDF_DOCUMENT_OPTIONS, worker: pdfWorker }),
+    [pdfWorker],
+  );
+
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
@@ -278,7 +292,7 @@ function PdfDocumentViewer({
         >
           <Document
             file={fileUrl}
-            options={PDF_DOCUMENT_OPTIONS}
+            options={documentOptions}
             onLoadSuccess={onLoadSuccess}
             onLoadError={onLoadError}
             loading={null}
