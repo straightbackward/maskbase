@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-slate-950: #020617;
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-400: #94a3b8;
+  --color-slate-300: #cbd5e1;
+  --color-slate-200: #e2e8f0;
+  --color-emerald-600: #059669;
+  --color-emerald-500: #10b981;
+  --color-emerald-400: #34d399;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #020617;
+  color: white;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.4); }
+
+/* Scanning animation */
+@keyframes scan {
+  0% { top: 0%; }
+  100% { top: 100%; }
+}
+.animate-scan { animation: scan 1.5s ease-in-out infinite alternate; }
+
+/* Pulse glow */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
+}
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* Typing dots */
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+.typing-dot:nth-child(1) { animation: bounce-dot 1.4s 0s infinite; }
+.typing-dot:nth-child(2) { animation: bounce-dot 1.4s 0.2s infinite; }
+.typing-dot:nth-child(3) { animation: bounce-dot 1.4s 0.4s infinite; }
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-blink { animation: blink 0.8s step-end infinite; }
+
+/* WKWebView / Safari <16.2 fallback: strip `in oklab` from gradient interpolation */
+@supports not (background: linear-gradient(in oklab, red, blue)) {
+  .bg-gradient-to-r  { --tw-gradient-position: to right; }
+  .bg-gradient-to-l  { --tw-gradient-position: to left; }
+  .bg-gradient-to-t  { --tw-gradient-position: to top; }
+  .bg-gradient-to-b  { --tw-gradient-position: to bottom; }
+  .bg-gradient-to-tr { --tw-gradient-position: to top right; }
+  .bg-gradient-to-tl { --tw-gradient-position: to top left; }
+  .bg-gradient-to-br { --tw-gradient-position: to bottom right; }
+  .bg-gradient-to-bl { --tw-gradient-position: to bottom left; }
+}
+

@@ -1,0 +1,61 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+build/
+*.local
+
+# Copied from node_modules by `npm run assets:pdfjs` (pre(dev|build) hook)
+public/pdfjs/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.spec
+# ...except the PyInstaller spec that build-dmg.sh needs
+!backend.spec
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/binaries/
+
+# Editor directories and files
+.claude/
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temp files
+tmp/
+
+# Environment
+.env
+.env.local
+.env.signing
+
+# Certificates & Keys
+*.cer
+*.csr
+*.key
+*.pem
+*.p12
+*.pfx

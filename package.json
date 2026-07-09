@@ -1,0 +1,41 @@
+{
+  "name": "maskbase",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Open-source, local-first PII redaction powered by small language models — with human-in-the-loop review.",
+  "scripts": {
+    "assets:pdfjs": "rm -rf public/pdfjs && mkdir -p public/pdfjs && cp -R node_modules/pdfjs-dist/cmaps node_modules/pdfjs-dist/standard_fonts public/pdfjs/",
+    "predev": "npm run assets:pdfjs",
+    "prebuild": "npm run assets:pdfjs",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "build:dmg": "./build-dmg.sh"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
+    "@tauri-apps/plugin-opener": "^2",
+    "docx-preview": "^0.3.7",
+    "framer-motion": "^12.34.1",
+    "lucide-react": "^0.574.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-pdf": "^9.2.1",
+    "tailwindcss": "^4.1.18",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}
