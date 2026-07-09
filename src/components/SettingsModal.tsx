@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Key, AlertTriangle, Shield, Trash2, CheckCircle, Loader2, Sliders,
@@ -53,6 +53,19 @@ export default function SettingsModal({ isOpen, onClose, onSaved, required }: Se
   const [customApiKey, setCustomApiKey] = useState('');
   const [customSaved, setCustomSaved] = useState(false);
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
+
+  const chatSectionRef = useRef<HTMLDivElement>(null);
+
+  // When opened because chat needs a model ("Ask AI" without one configured),
+  // jump to the AI Chat providers section instead of the top of the list.
+  useEffect(() => {
+    if (!isOpen || !required) return;
+    const t = setTimeout(
+      () => chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      250,
+    );
+    return () => clearTimeout(t);
+  }, [isOpen, required]);
 
   const refreshEngines = useCallback(() => {
     getEngines().then((cat) => {
@@ -284,13 +297,6 @@ export default function SettingsModal({ isOpen, onClose, onSaved, required }: Se
             </div>
 
             <div className="overflow-y-auto flex-1 p-5 space-y-6">
-              {required && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <p className="text-xs text-amber-300">Connect a chat model below — an API key, a custom endpoint, or a running Ollama.</p>
-                </div>
-              )}
-
               {/* ── Redaction Engine ─────────────────────────────── */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-1">
@@ -536,7 +542,13 @@ export default function SettingsModal({ isOpen, onClose, onSaved, required }: Se
               </div>
 
               {/* ── AI Chat: API keys ─────────────────────────────── */}
-              <div>
+              <div ref={chatSectionRef}>
+                {required && (
+                  <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <p className="text-xs text-amber-300">Connect a chat model below — an API key, a custom endpoint, or a running Ollama.</p>
+                  </div>
+                )}
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-1">
                   <Key className="w-4 h-4 text-emerald-400" />
                   AI Chat — Providers
