@@ -8,7 +8,9 @@ MaskBase scans PDF, DOCX, CSV and XLSX files for personally identifiable informa
 
 ## Demo
 
-https://github.com/straightbackward/maskbase/raw/main/MaskBase_demo_compressed.mp4
+[![Watch the demo — scanning, reviewing and redacting a batch of documents](docs/demo-poster.png)](https://github.com/straightbackward/maskbase/raw/main/MaskBase_demo_compressed.mp4)
+
+*▶ Click to watch the 1-minute demo (7 MB, plays in the browser).*
 
 ## How it works
 
