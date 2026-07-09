@@ -73,6 +73,62 @@ def _safe_dir_name(model_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", model_id)
 
 
+# ── Download progress ─────────────────────────────────────────────────
+# Written by the loading thread, read by /health so the UI can show a
+# real progress bar during the first-launch model download.
+
+_progress_lock = threading.Lock()
+_progress: Dict = {"stage": None, "downloaded_bytes": 0, "total_bytes": 0}
+
+
+def _set_progress(stage: Optional[str], downloaded: int = 0, total: int = 0) -> None:
+    with _progress_lock:
+        _progress["stage"] = stage
+        _progress["downloaded_bytes"] = downloaded
+        _progress["total_bytes"] = total
+
+
+def _dir_size(path: Path) -> int:
+    try:
+        return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    except OSError:
+        return 0
+
+
+def _download_with_progress(model_id: str, local_dir: Path) -> None:
+    """snapshot_download with byte-level progress derived from disk usage.
+
+    Total size comes from the Hub API; if that call fails the download still
+    runs, just with an unknown total (the UI falls back to an indeterminate
+    bar). Partial downloads resume — snapshot_download skips complete files.
+    """
+    from huggingface_hub import HfApi, snapshot_download
+
+    total = 0
+    try:
+        info = HfApi().model_info(model_id, files_metadata=True)
+        total = sum(s.size or 0 for s in info.siblings)
+    except Exception:
+        pass
+
+    _set_progress("downloading", _dir_size(local_dir), total)
+    done = threading.Event()
+
+    def _watch() -> None:
+        while not done.wait(0.5):
+            # Counts .incomplete files too, so resumed downloads start ahead.
+            _set_progress("downloading", min(_dir_size(local_dir), total or 1 << 62), total)
+
+    watcher = threading.Thread(target=_watch, daemon=True)
+    watcher.start()
+    try:
+        snapshot_download(model_id, local_dir=str(local_dir))
+    finally:
+        done.set()
+        watcher.join(timeout=2)
+    _set_progress("loading", total, total)
+
+
 # ── Engines ───────────────────────────────────────────────────────────
 
 
@@ -161,11 +217,15 @@ class GlinerEngine:
         legacy_dir = MODELS_DIR / self.model_id.split("/")[-1]
         for cache_dir in (local_dir, legacy_dir):
             if cache_dir.exists() and any(cache_dir.iterdir()):
-                self._model = GLiNER.from_pretrained(str(cache_dir))
-                return
-        self._model = GLiNER.from_pretrained(self.model_id)
-        local_dir.mkdir(parents=True, exist_ok=True)
-        self._model.save_pretrained(str(local_dir))
+                try:
+                    self._model = GLiNER.from_pretrained(str(cache_dir))
+                    return
+                except Exception:
+                    # Partial/corrupt cache (e.g. quit mid-download) — re-fetch;
+                    # snapshot_download resumes whatever is already on disk.
+                    pass
+        _download_with_progress(self.model_id, local_dir)
+        self._model = GLiNER.from_pretrained(str(local_dir))
 
     def detect(self, text: str, labels: List[str], threshold: float,
                enabled_entity_types: Optional[set] = None) -> List[Dict]:
@@ -229,9 +289,24 @@ class HFTokenEngine:
             return
         from transformers import pipeline
 
+        # Download into our models dir (with progress) rather than the hidden
+        # HF cache — also makes is_model_cached() accurate for hf_token models.
+        local_dir = MODELS_DIR / _safe_dir_name(self.model_id)
+        if local_dir.exists() and any(local_dir.iterdir()):
+            try:
+                self._pipe = pipeline(
+                    "token-classification",
+                    model=str(local_dir),
+                    aggregation_strategy="simple",
+                )
+                return
+            except Exception:
+                # Partial/corrupt cache — re-fetch; snapshot_download resumes.
+                pass
+        _download_with_progress(self.model_id, local_dir)
         self._pipe = pipeline(
             "token-classification",
-            model=self.model_id,
+            model=str(local_dir),
             aggregation_strategy="simple",
         )
 
@@ -311,6 +386,7 @@ def _load_active_locked() -> None:
         engine = _build_engine(cfg["kind"], cfg.get("model_id", ""))
         _state = "loading"
         _error = None
+    _set_progress("loading")
     try:
         engine.load()
         with _lock:
@@ -320,6 +396,8 @@ def _load_active_locked() -> None:
         with _lock:
             _state = "error"
             _error = str(exc)
+    finally:
+        _set_progress(None)
 
 
 def preload() -> None:
@@ -333,12 +411,15 @@ def is_ready() -> bool:
 
 def get_status() -> Dict:
     cfg = _active_config or _load_config()
+    with _progress_lock:
+        progress = dict(_progress)
     return {
         "kind": cfg.get("kind", DEFAULT_ENGINE["kind"]),
         "model_id": cfg.get("model_id", DEFAULT_ENGINE["model_id"]),
         "state": _state,
         "error": _error,
         "regex_boost": bool(cfg.get("regex_boost", True)),
+        "progress": progress,
     }
 
 

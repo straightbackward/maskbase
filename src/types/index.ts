@@ -75,6 +75,18 @@ export interface ChatResponse {
 export interface HealthResponse {
   status: string;
   model_ready?: boolean;
+  engine?: {
+    kind: string;
+    model_id: string;
+    state: 'not_loaded' | 'loading' | 'ready' | 'error';
+    error: string | null;
+    regex_boost: boolean;
+    progress?: {
+      stage: 'loading' | 'downloading' | null;
+      downloaded_bytes: number;
+      total_bytes: number;
+    };
+  };
 }
 
 export interface ChatDocument {

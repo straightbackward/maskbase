@@ -16,6 +16,11 @@ import SettingsModal from './components/SettingsModal';
 import WelcomeModal, { hasSeenWelcome } from './components/TermsModal';
 import { SavedChat } from './types';
 
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(bytes / 1e6))} MB`;
+}
+
 export default function App() {
   const { stage, backendReady, setBackendReady, error, setError, setApiKeySet, setCurrentModel, setCurrentProvider, setStage } = useAppStore();
   const [showSettings, setShowSettings] = useState(false);
@@ -33,6 +38,10 @@ export default function App() {
   }, [setApiKeySet, setCurrentModel, setCurrentProvider]);
 
   const [loadingMessage, setLoadingMessage] = useState('Starting MaskBase engine…');
+  // Download/load progress for the boot screen. null = no bar (spinner only);
+  // percent null = indeterminate bar (size unknown or model loading into memory).
+  const [bootProgress, setBootProgress] = useState<{ percent: number | null; detail: string | null } | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,14 +60,32 @@ export default function App() {
             await loadSettings();
             return;
           }
-          // Server is up but the PII model is still loading.
-          setLoadingMessage('Loading PII detection model…');
+          // Server is up but the PII model is still downloading or loading.
+          const engine = health.engine;
+          const prog = engine?.progress;
+          setBootError(engine?.state === 'error' ? (engine.error || 'The PII model failed to load.') : null);
+          if (prog?.stage === 'downloading') {
+            setLoadingMessage('Downloading the PII detection model…');
+            const percent = prog.total_bytes > 0
+              ? Math.min(100, (prog.downloaded_bytes / prog.total_bytes) * 100)
+              : null;
+            setBootProgress({
+              percent,
+              detail: percent !== null
+                ? `${formatBytes(prog.downloaded_bytes)} of ${formatBytes(prog.total_bytes)} · ${Math.round(percent)}%`
+                : formatBytes(prog.downloaded_bytes),
+            });
+          } else if (engine?.state !== 'error') {
+            setLoadingMessage('Loading PII detection model…');
+            setBootProgress({ percent: null, detail: null });
+          }
           await new Promise((r) => setTimeout(r, 1000));
         } catch {
           // Backend not reachable yet (still booting, or not started).
           connectFailures++;
           if (connectFailures > 20) {
             setLoadingMessage('Waiting for the redaction backend to start…');
+            setBootProgress(null);
           }
           await new Promise((r) => setTimeout(r, 500));
         }
@@ -369,7 +396,33 @@ export default function App() {
               </svg>
             </div>
             <p className="text-sm text-slate-400">{loadingMessage}</p>
-            <p className="text-xs text-slate-600 mt-1">This may take a moment on first launch</p>
+            {bootProgress ? (
+              <div className="w-64 mx-auto mt-3">
+                <div className="h-1.5 rounded-full bg-slate-800/80 overflow-hidden">
+                  {bootProgress.percent !== null ? (
+                    <motion.div
+                      animate={{ width: `${bootProgress.percent}%` }}
+                      transition={{ ease: 'easeOut', duration: 0.5 }}
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+                    />
+                  ) : (
+                    <motion.div
+                      animate={{ x: ['-100%', '300%'] }}
+                      transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                      className="h-full w-1/3 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+                    />
+                  )}
+                </div>
+                {bootProgress.detail && (
+                  <p className="text-xs font-mono text-slate-500 mt-2">{bootProgress.detail}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-600 mt-1">This may take a moment on first launch</p>
+            )}
+            {bootError && (
+              <p className="text-xs text-red-400 mt-3 max-w-sm mx-auto">{bootError}</p>
+            )}
           </div>
         </div>
       )}
