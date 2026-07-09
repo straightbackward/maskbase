@@ -6,6 +6,10 @@ MaskBase scans PDF, DOCX, CSV and XLSX files for personally identifiable informa
 
 > Need to share a contract with ChatGPT? Hand a dataset to a contractor? Publish a support log? Redact it first — locally.
 
+## Demo
+
+https://github.com/straightbackward/maskbase/raw/main/MaskBase_demo_compressed.mp4
+
 ## How it works
 
 ```

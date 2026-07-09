@@ -59,3 +59,5 @@ tmp/
 *.pem
 *.p12
 *.pfx
+# Demo videos
+*.mov
