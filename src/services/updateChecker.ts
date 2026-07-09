@@ -1,7 +1,7 @@
 // Manual update check against GitHub Releases. No background polling —
 // the app only talks to GitHub when the user clicks "Check for updates".
 
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.3.1';
 
 export const GITHUB_REPO = 'straightbackward/maskbase';
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;

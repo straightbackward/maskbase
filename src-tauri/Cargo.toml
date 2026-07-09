@@ -1,6 +1,6 @@
 [package]
 name = "maskbase"
-version = "0.3.0"
+version = "0.3.1"
 description = "MaskBase — Local PII Redaction"
 authors = ["MaskBase contributors"]
 edition = "2021"
